@@ -53,7 +53,7 @@ function TourCard({ tour, bookTour, currentUser }) {
       </div>
       <div className="tour-info" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <h3>{tour.title}</h3>
-        <p className="duration">⏳ {tour.duration}</p>
+        <p className="duration"> {tour.duration}</p>
         <p className="price">{tour.price.toLocaleString()} грн</p>
         
         <button className="btn-book" onClick={() => bookTour(tour)}>
@@ -113,5 +113,6 @@ function TourCard({ tour, bookTour, currentUser }) {
     </article>
   );
 }
+
 
 export default TourCard;
