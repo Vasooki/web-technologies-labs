@@ -9,7 +9,7 @@ function TourCard({ tour, bookTour, currentUser }) {
   // 1. ЗАВАНТАЖУЄМО ВІДГУКИ З НАШОГО СЕРВЕРА (БЕКЕНДУ)
   const fetchReviews = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tours/${tour.id}/reviews`);
+      const response = await fetch(`https://web-technologies-labs.onrender.com/api/tours/${tour.id}/reviews`);
       const data = await response.json();
       setReviews(data.reviews);
       setAverageRating(data.averageRating);
@@ -36,7 +36,7 @@ function TourCard({ tour, bookTour, currentUser }) {
 
     try {
       // Робимо POST запит на наш сервер
-      const response = await fetch(`http://localhost:5000/api/tours/${tour.id}/reviews`, {
+      const response = await fetch(`https://web-technologies-labs.onrender.com/api/tours/${tour.id}/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newReview)
