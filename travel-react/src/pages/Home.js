@@ -22,12 +22,12 @@ function Home({ bookTour, currentUser }) {
     }
   };
 
-  // Викликаємо завантаження при відкритті сторінки
+
   useEffect(() => {
     fetchTours();
   }, []);
 
-  // 2. НАША СЕКРЕТНА КНОПКА (Додає тури в порожню базу)
+
   const seedDatabase = async () => {
     const myTours = [
       { title: "Єгипет, Шарм-ель-Шейх", price: 15000, duration: "7 днів", img: "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=500" },
@@ -46,7 +46,7 @@ function Home({ bookTour, currentUser }) {
     }
   };
 
-  // Функція сортування (працює як і раніше)
+
   const sortByPrice = () => {
     const sortedTours = [...tours].sort((a, b) => a.price - b.price);
     setTours(sortedTours);

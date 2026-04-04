@@ -1,48 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
 
 function TourCard({ tour, bookTour, currentUser }) {
   const [reviews, setReviews] = useState([]);
   const [reviewText, setReviewText] = useState('');
   const [rating, setRating] = useState(5);
+  const [averageRating, setAverageRating] = useState(0);
 
-  // 1. Завантажуємо існуючі відгуки для цього туру з Firebase
+  // 1. ЗАВАНТАЖУЄМО ВІДГУКИ З НАШОГО СЕРВЕРА (БЕКЕНДУ)
+  const fetchReviews = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tours/${tour.id}/reviews`);
+      const data = await response.json();
+      setReviews(data.reviews);
+      setAverageRating(data.averageRating);
+    } catch (error) {
+      console.error("Помилка завантаження відгуків з сервера:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchReviews = async () => {
-      try {
-        // Звертаємося до підколекції "reviews" всередині конкретного туру
-        const reviewsRef = collection(db, "tours", tour.id, "reviews");
-        const querySnapshot = await getDocs(reviewsRef);
-        const loadedReviews = querySnapshot.docs.map(doc => doc.data());
-        setReviews(loadedReviews);
-      } catch (error) {
-        console.error("Помилка завантаження відгуків:", error);
-      }
-    };
     fetchReviews();
   }, [tour.id]);
 
-  // 2. Функція для додавання нового відгуку
+  // 2. ВІДПРАВЛЯЄМО НОВИЙ ВІДГУК НА СЕРВЕР (ТАМ ПРАЦЮЄ ЦЕНЗУРА)
   const handleAddReview = async (e) => {
     e.preventDefault();
-    if (!currentUser) return; // Захист: якщо не увійшов, функція не спрацює
+    if (!currentUser) return;
 
     const newReview = {
       text: reviewText,
       rating: rating,
-      userEmail: currentUser.email, // Записуємо пошту автора
+      userEmail: currentUser.email,
       date: new Date().toLocaleDateString()
     };
 
     try {
-      const reviewsRef = collection(db, "tours", tour.id, "reviews");
-      await addDoc(reviewsRef, newReview); // Зберігаємо в базу
-      setReviews([...reviews, newReview]); // Миттєво малюємо на екрані
-      setReviewText(''); // Очищаємо поле вводу
-      setRating(5); // Скидаємо зірочки на 5
+      // Робимо POST запит на наш сервер
+      const response = await fetch(`http://localhost:5000/api/tours/${tour.id}/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newReview)
+      });
+
+      const data = await response.json();
+
+      // Якщо сервер відбив запит (знайшов заборонене слово)
+      if (!response.ok) {
+        alert("🛑 СЕРВЕР ЗАБЛОКУВАВ ВІДГУК: " + data.error);
+        return; 
+      }
+
+      // Якщо все чисто
+      setReviewText('');
+      setRating(5);
+      fetchReviews(); // Оновлюємо список відгуків і рейтинг
+      alert("✅ " + data.message);
+
     } catch (error) {
-      alert("Помилка додавання відгуку: " + error.message);
+      alert("Помилка з'єднання з сервером. Перевірте, чи запущений Node.js сервер!");
     }
   };
 
@@ -53,8 +68,13 @@ function TourCard({ tour, bookTour, currentUser }) {
       </div>
       <div className="tour-info" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <h3>{tour.title}</h3>
-        <p className="duration"> {tour.duration}</p>
+        <p className="duration">⏳ {tour.duration}</p>
         <p className="price">{tour.price.toLocaleString()} грн</p>
+        
+        {/* --- ПОКАЗУЄМО СЕРЕДНІЙ РЕЙТИНГ --- */}
+        <div style={{ background: '#ecf0f1', padding: '5px 10px', borderRadius: '5px', display: 'inline-block', marginBottom: '10px', fontWeight: 'bold' }}>
+          🏆 Рейтинг туру: {averageRating > 0 ? `${averageRating} / 5.0` : 'Ще немає оцінок'}
+        </div>
         
         <button className="btn-book" onClick={() => bookTour(tour)}>
           Забронювати
@@ -64,9 +84,8 @@ function TourCard({ tour, bookTour, currentUser }) {
         <div style={{ marginTop: '20px', borderTop: '2px dashed #eee', paddingTop: '15px', flexGrow: 1 }}>
           <h4 style={{ margin: '0 0 10px 0' }}>Відгуки ({reviews.length})</h4>
 
-          {/* Список залишених відгуків */}
           <div style={{ maxHeight: '150px', overflowY: 'auto', marginBottom: '15px' }}>
-            {reviews.length === 0 && <p style={{ fontSize: '14px', color: '#7f8c8d', fontStyle: 'italic' }}>Ще немає відгуків. Будьте першим!</p>}
+            {reviews.length === 0 && <p style={{ fontSize: '14px', color: '#7f8c8d', fontStyle: 'italic' }}>Ще немає відгуків.</p>}
             
             {reviews.map((rev, index) => (
               <div key={index} style={{ background: '#f8f9fa', padding: '10px', borderRadius: '6px', marginBottom: '8px', fontSize: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
@@ -79,7 +98,6 @@ function TourCard({ tour, bookTour, currentUser }) {
             ))}
           </div>
 
-          {/* Форма відгуку (ПОКАЗУЄМО ТІЛЬКИ ЯКЩО АВТОРИЗОВАНИЙ) */}
           {currentUser ? (
             <form onSubmit={handleAddReview} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
               <select value={rating} onChange={(e) => setRating(Number(e.target.value))} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}>
@@ -93,19 +111,16 @@ function TourCard({ tour, bookTour, currentUser }) {
                 placeholder="Напишіть свої враження..."
                 value={reviewText}
                 onChange={(e) => setReviewText(e.target.value)}
-                required
-                rows="2"
-                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', resize: 'vertical', fontFamily: 'inherit' }}
+                required rows="2"
+                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', resize: 'vertical' }}
               />
               <button type="submit" style={{ padding: '8px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                 Залишити відгук
+                ✍️ Залишити відгук
               </button>
             </form>
           ) : (
             <div style={{ background: '#ffeaa7', padding: '10px', borderRadius: '4px', textAlign: 'center', marginTop: 'auto' }}>
-              <p style={{ fontSize: '13px', color: '#d35400', margin: 0, fontWeight: 'bold' }}>
-                 Увійдіть в акаунт, щоб залишати відгуки та ставити оцінки.
-              </p>
+              <p style={{ fontSize: '13px', color: '#d35400', margin: 0, fontWeight: 'bold' }}>🔒 Увійдіть, щоб залишити відгук.</p>
             </div>
           )}
         </div>
@@ -113,6 +128,5 @@ function TourCard({ tour, bookTour, currentUser }) {
     </article>
   );
 }
-
 
 export default TourCard;
